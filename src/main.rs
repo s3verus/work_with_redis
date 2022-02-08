@@ -5,6 +5,7 @@ fn main() {
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
-        work_with_redis::handle_connection(stream);
+        let results = work_with_redis::handle_connection(stream);
+        println!("{:?}", results);
     }
 }
