@@ -3,6 +3,10 @@ use std::io::prelude::*;
 use std::net::TcpStream;
 use redis::RedisError;
 use std::error::Error;
+use std::fs::File;
+extern crate yaml_rust;
+use yaml_rust::YamlLoader;
+use yaml_rust::Yaml;
  
 pub fn connect() -> Result<redis::Connection, RedisError> {
     let redis_host_name = "127.0.0.1:6379";
@@ -40,7 +44,7 @@ pub fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
     let conn = connect()?;
 
     stream.read(&mut buffer)?; 
-    println!("Request:\n{}", String::from_utf8_lossy(&buffer[..]));
+    println!("\nRequest:\n{}", String::from_utf8_lossy(&buffer[..]));
 
     // parse data
     let data = String::from_utf8_lossy(&buffer[..]);
@@ -68,4 +72,18 @@ pub fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
     stream.write(response.as_bytes())?;
     stream.flush()?;
     Ok(())
+}
+
+pub fn yaml_object() -> Result<Yaml, Box<dyn Error>> {
+    // Open file
+    let mut file = File::open("Config.yaml")?;
+
+    // Read the file contents into a string
+    let mut s = String::new();
+    file.read_to_string(&mut s)?;
+
+    let docs = YamlLoader::load_from_str(&s)?;
+
+    // Multi document support, doc is a yaml::Yaml
+    Ok(yaml_rust::Yaml::Array(docs))
 }
