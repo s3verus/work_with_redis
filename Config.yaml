@@ -1,0 +1,8 @@
+config:
+  # format    host:port
+  bind: '127.0.0.1:1337'
+db-config:
+  db-host: 127.0.0.1
+  db-port: '6379'
+  db-pass: ''
+  db-user: ''
