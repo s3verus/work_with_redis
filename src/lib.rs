@@ -1,20 +1,23 @@
 use redis::Commands;
-use std::io::prelude::*;
-use std::net::TcpStream;
 use redis::RedisError;
 use std::error::Error;
 use std::fs::File;
+use std::io::prelude::*;
+use std::net::TcpStream;
 extern crate yaml_rust;
-use yaml_rust::YamlLoader;
 use yaml_rust::Yaml;
- 
-pub fn connect() -> Result<redis::Connection, RedisError> {
-    let redis_host_name = "127.0.0.1:6379";
-    let redis_password = "";
-    let redis_conn_url = format!("{}://:{}@{}", "redis", redis_password, redis_host_name);
+use yaml_rust::YamlLoader;
 
-    let result = redis::Client::open(redis_conn_url)?
-        .get_connection()?;
+pub fn connect() -> Result<redis::Connection, Box<dyn Error>> {
+    let docs = yaml_object()?;
+    let doc = &docs[0];
+
+    let host = doc["db-config"]["db-host"].as_str().ok_or("127.0.0.1")?;
+    let port = doc["db-config"]["db-port"].as_str().ok_or("6379")?;
+    let pass = doc["db-config"]["db-pass"].as_str().ok_or("")?;
+    let conn_url = format!("{}://:{}@{}:{}", "redis", pass, host, port);
+
+    let result = redis::Client::open(conn_url)?.get_connection()?;
     Ok(result)
 }
 
@@ -27,9 +30,8 @@ pub fn block_domain(domain: &str, mut conn: redis::Connection) -> Result<(), Red
 }
 
 pub fn is_exists(domain: &String, mut conn: redis::Connection) -> Result<bool, RedisError> {
-    let block_list: Vec<String> = conn
-        .lrange("block_list", 0, -1)?;
-    
+    let block_list: Vec<String> = conn.lrange("block_list", 0, -1)?;
+
     if block_list.contains(domain) {
         Ok(true)
     } else {
@@ -43,7 +45,7 @@ pub fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
     let post_check = b"POST /check HTTP/1.1\r\n";
     let conn = connect()?;
 
-    stream.read(&mut buffer)?; 
+    stream.read(&mut buffer)?;
     println!("\nRequest:\n{}", String::from_utf8_lossy(&buffer[..]));
 
     // parse data
