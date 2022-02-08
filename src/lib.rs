@@ -3,19 +3,17 @@ use std::io::prelude::*;
 use std::net::TcpStream;
 use redis::RedisError;
 
-pub fn connect() -> redis::Connection {
+pub fn connect() -> Result<redis::Connection, RedisError> {
     let redis_host_name = "127.0.0.1:6379";
     let redis_password = "";
     let redis_conn_url = format!("{}://:{}@{}", "redis", redis_password, redis_host_name);
 
-    redis::Client::open(redis_conn_url)//?
-        .expect("Invalid connection URL")
-        .get_connection()//?
-        .expect("failed to connect to Redis")
+    let result = redis::Client::open(redis_conn_url)?
+        .get_connection()?;
+    Ok(result)
 }
 
-pub fn block_domain(domain: &str) -> Result<(), RedisError> {
-    let mut conn = connect();
+pub fn block_domain(domain: &str, mut conn: redis::Connection) -> Result<(), RedisError> {
     let _: () = redis::cmd("rpush")
         .arg("block_list")
         .arg(domain)
@@ -23,8 +21,7 @@ pub fn block_domain(domain: &str) -> Result<(), RedisError> {
     Ok(())
 }
 
-pub fn is_exists(domain: &String) -> Result<bool, RedisError> {
-    let mut conn = connect();
+pub fn is_exists(domain: &String, mut conn: redis::Connection) -> Result<bool, RedisError> {
     let block_list: Vec<String> = conn
         .lrange("block_list", 0, -1)?;
     
@@ -39,6 +36,10 @@ pub fn handle_connection(mut stream: TcpStream) -> Result<(), RedisError> {
     let mut buffer = [0; 256];
     let post_block = b"POST /block HTTP/1.1\r\n";
     let post_check = b"POST /check HTTP/1.1\r\n";
+    let conn = match connect() {
+        Ok(conn) => conn,
+        Err(e) => return Err(e),
+    };
 
     stream.read(&mut buffer)?; // TODO handle it, has different error type!
     println!("Request:\n{}", String::from_utf8_lossy(&buffer[..]));
@@ -53,13 +54,13 @@ pub fn handle_connection(mut stream: TcpStream) -> Result<(), RedisError> {
 
     // Validating the Request and Selectively Responding
     let response = if buffer.starts_with(post_block) {
-        match block_domain(&site) {
+        match block_domain(&site, conn) {
             Ok(()) => (),
             Err(e) => return Err(e),
         }
         "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nsite blocked!"
     } else if buffer.starts_with(post_check) {
-        let result = match is_exists(&site) {
+        let result = match is_exists(&site, conn) {
             Ok(boolean) => boolean,
             Err(e) => return Err(e),
         };
