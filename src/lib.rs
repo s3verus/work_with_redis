@@ -2,7 +2,8 @@ use redis::Commands;
 use std::io::prelude::*;
 use std::net::TcpStream;
 use redis::RedisError;
-
+use std::error::Error;
+ 
 pub fn connect() -> Result<redis::Connection, RedisError> {
     let redis_host_name = "127.0.0.1:6379";
     let redis_password = "";
@@ -32,16 +33,13 @@ pub fn is_exists(domain: &String, mut conn: redis::Connection) -> Result<bool, R
     }
 }
 
-pub fn handle_connection(mut stream: TcpStream) -> Result<(), RedisError> {
+pub fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
     let mut buffer = [0; 256];
     let post_block = b"POST /block HTTP/1.1\r\n";
     let post_check = b"POST /check HTTP/1.1\r\n";
-    let conn = match connect() {
-        Ok(conn) => conn,
-        Err(e) => return Err(e),
-    };
+    let conn = connect()?;
 
-    stream.read(&mut buffer)?; // TODO handle it, has different error type!
+    stream.read(&mut buffer)?; 
     println!("Request:\n{}", String::from_utf8_lossy(&buffer[..]));
 
     // parse data
@@ -54,16 +52,10 @@ pub fn handle_connection(mut stream: TcpStream) -> Result<(), RedisError> {
 
     // Validating the Request and Selectively Responding
     let response = if buffer.starts_with(post_block) {
-        match block_domain(&site, conn) {
-            Ok(()) => (),
-            Err(e) => return Err(e),
-        }
+        block_domain(&site, conn)?;
         "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nsite blocked!"
     } else if buffer.starts_with(post_check) {
-        let result = match is_exists(&site, conn) {
-            Ok(boolean) => boolean,
-            Err(e) => return Err(e),
-        };
+        let result = is_exists(&site, conn)?;
         if result {
             "HTTP/1.1 200 OK\r\nContent-Length: 19\r\n\r\nit's in block list!"
         } else {
@@ -73,7 +65,7 @@ pub fn handle_connection(mut stream: TcpStream) -> Result<(), RedisError> {
         "HTTP/1.1 404 NOT FOUND\r\nContent-Length: 14\r\n\r\nwrong request!"
     };
 
-    stream.write(response.as_bytes())?; // TODO handle
-    stream.flush()?; // TODO handle
+    stream.write(response.as_bytes())?;
+    stream.flush()?;
     Ok(())
 }
