@@ -1,7 +1,6 @@
 use std::net::TcpListener;
 
 fn main() {
-    
     let docs = work_with_redis::yaml_object().unwrap();
 
     // Multi document support, doc is a yaml::Yaml
