@@ -1,7 +1,8 @@
 use std::net::TcpListener;
+mod config;
 
 fn main() {
-    let config = work_with_redis::load_config().unwrap();
+    let config = config::load_config().unwrap();
 
     // Multi document support, doc is a yaml::Yaml
     let conf = &config[0];
