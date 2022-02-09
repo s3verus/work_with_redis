@@ -9,12 +9,12 @@ use yaml_rust::Yaml;
 use yaml_rust::YamlLoader;
 
 pub fn connect() -> Result<redis::Connection, Box<dyn Error>> {
-    let docs = yaml_object()?;
-    let doc = &docs[0];
+    let config = load_config()?;
+    let conf = &config[0];
 
-    let host = doc["db-config"]["db-host"].as_str().ok_or("127.0.0.1")?;
-    let port = doc["db-config"]["db-port"].as_str().ok_or("6379")?;
-    let pass = doc["db-config"]["db-pass"].as_str().ok_or("")?;
+    let host = conf["db"]["host"].as_str().ok_or("127.0.0.1")?;
+    let port = conf["db"]["port"].as_str().ok_or("6379")?;
+    let pass = conf["db"]["pass"].as_str().ok_or("")?;
     let conn_url = format!("{}://:{}@{}:{}", "redis", pass, host, port);
 
     let result = redis::Client::open(conn_url)?.get_connection()?;
@@ -76,7 +76,7 @@ pub fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn yaml_object() -> Result<Yaml, Box<dyn Error>> {
+pub fn load_config() -> Result<Yaml, Box<dyn Error>> {
     // Open file
     let mut file = File::open("Config.yaml")?;
 
