@@ -1,13 +1,13 @@
 use std::net::TcpListener;
 
 fn main() {
-    let docs = work_with_redis::yaml_object().unwrap();
+    let config = work_with_redis::load_config().unwrap();
 
     // Multi document support, doc is a yaml::Yaml
-    let doc = &docs[0];
+    let conf = &config[0];
 
     // read bind from Config.yaml
-    let bind = doc["config"]["bind"].as_str().unwrap();
+    let bind = conf["listener"]["bind"].as_str().unwrap();
     let listener = TcpListener::bind(bind).unwrap();
 
     for stream in listener.incoming() {
