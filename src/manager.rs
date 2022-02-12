@@ -3,6 +3,8 @@ use redis::RedisError;
 use std::error::Error;
 use std::io::prelude::*;
 use std::net::TcpStream;
+use crate::dao::connect;
+use crate::config::DB;
 
 pub fn block_domain(domain: &str, mut conn: redis::Connection) -> Result<(), RedisError> {
     let _: () = redis::cmd("rpush")
@@ -22,11 +24,11 @@ pub fn is_exists(domain: &String, mut conn: redis::Connection) -> Result<bool, R
     }
 }
 
-pub fn handle_connection(mut stream: TcpStream, config: Config) -> Result<(), Box<dyn Error>> {
+pub fn handle_connection(mut stream: TcpStream, config: DB) -> Result<(), Box<dyn Error>> {
     let mut buffer = [0; 256];
     let post_block = b"POST /block HTTP/1.1\r\n";
     let post_check = b"POST /check HTTP/1.1\r\n";
-    let conn = dao::connect(config)?;
+    let conn = connect(config)?;
 
     stream.read(&mut buffer)?;
     println!("\nRequest:\n{}", String::from_utf8_lossy(&buffer[..]));
