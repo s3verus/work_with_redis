@@ -1,8 +1,0 @@
-listener:
-  # format    host:port
-  bind: '127.0.0.1:1337'
-db:
-  host: 127.0.0.1
-  port: '6379'
-  pass: ''
-  user: ''
