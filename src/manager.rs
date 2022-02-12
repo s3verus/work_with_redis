@@ -1,21 +1,17 @@
-use redis::Commands;
 use redis::RedisError;
 use std::error::Error;
 use std::io::prelude::*;
 use std::net::TcpStream;
-use crate::dao::connect;
+use crate::dao::*;
 use crate::config::DB;
 
-pub fn block_domain(domain: &str, mut conn: redis::Connection) -> Result<(), RedisError> {
-    let _: () = redis::cmd("rpush")
-        .arg("block_list")
-        .arg(domain)
-        .query(&mut conn)?;
+pub fn block_domain(domain: &str, conn: redis::Connection) -> Result<(), RedisError> {
+    let _: () = add_items("block_list", domain, conn)?; 
     Ok(())
 }
 
-pub fn is_exists(domain: &String, mut conn: redis::Connection) -> Result<bool, RedisError> {
-    let block_list: Vec<String> = conn.lrange("block_list", 0, -1)?;
+pub fn is_exists(domain: &String, conn: redis::Connection) -> Result<bool, RedisError> {
+    let block_list: Vec<String> = get_items("block_list", conn)?;
 
     if block_list.contains(domain) {
         Ok(true)
