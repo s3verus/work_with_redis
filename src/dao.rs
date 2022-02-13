@@ -13,11 +13,11 @@ pub fn connect(config: DB) -> Result<redis::Connection, Box<dyn Error>> {
     Ok(result)
 }
 
-pub fn add_items(key: &str, value: &str, mut conn: redis::Connection) -> Result<(), RedisError> {
+pub fn add_items(key: &str, value: &str, conn: &mut redis::Connection) -> Result<(), RedisError> {
     let _: () = redis::cmd("rpush")
         .arg(key)
         .arg(value)
-        .query(&mut conn)?;
+        .query(&mut *conn)?;
     Ok(())
 }
 
