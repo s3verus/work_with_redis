@@ -5,6 +5,11 @@ use std::net::TcpStream;
 use crate::dao::*;
 use crate::config::DB;
 
+#[derive(Clone)]
+pub struct List {
+    pub block: Vec<String>,
+}
+
 pub fn block_domain(domain: &str, conn: redis::Connection) -> Result<(), RedisError> {
     let _: () = add_items("block_list", domain, conn)?; 
     Ok(())
@@ -19,8 +24,14 @@ pub fn is_exists(domain: &String, conn: redis::Connection) -> Result<bool, Redis
         Ok(false)
     }
 }
-
-pub fn handle_connection(mut stream: TcpStream, config: DB) -> Result<(), Box<dyn Error>> {
+pub fn is_exists2(domain: &String, list: &List) -> bool {
+    if list.block.contains(domain) {
+        true
+    } else {
+        false
+    }
+}
+pub fn handle_connection(mut stream: TcpStream, config: DB, list: &List ) -> Result<(), Box<dyn Error>> {
     let mut buffer = [0; 256];
     let post_block = b"POST /block HTTP/1.1\r\n";
     let post_check = b"POST /check HTTP/1.1\r\n";
@@ -42,7 +53,8 @@ pub fn handle_connection(mut stream: TcpStream, config: DB) -> Result<(), Box<dy
         block_domain(&site, conn)?;
         "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nsite blocked!"
     } else if buffer.starts_with(post_check) {
-        let result = is_exists(&site, conn)?;
+        // let result = is_exists(&site, conn)?;
+        let result = is_exists2(&site, list);
         if result {
             "HTTP/1.1 200 OK\r\nContent-Length: 19\r\n\r\nit's in block list!"
         } else {
