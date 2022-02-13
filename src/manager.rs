@@ -8,11 +8,16 @@ use crate::config::DB;
 #[derive(Clone)]
 pub struct List {
     pub block: Vec<String>,
+    // pub white: Vec<String>,
 }
 
-pub fn block_domain(domain: &str, conn: redis::Connection) -> Result<(), RedisError> {
-    let _: () = add_items("block_list", domain, conn)?; 
-    Ok(())
+pub fn block_domain(domain: &str, mut conn: redis::Connection) -> Result<List, RedisError> {
+    let _: () = add_items("block_list", domain, &mut conn)?;
+    let list = List {
+        block: get_items("block_list", conn)?,
+        // white_list: get_items("white_list")?,
+    };
+    Ok(list)
 }
 
 pub fn is_exists(domain: &String, conn: redis::Connection) -> Result<bool, RedisError> {
@@ -50,7 +55,8 @@ pub fn handle_connection(mut stream: TcpStream, config: DB, list: &List ) -> Res
 
     // Validating the Request and Selectively Responding
     let response = if buffer.starts_with(post_block) {
-        block_domain(&site, conn)?;
+        // TODO how make it global?
+        let list: List = block_domain(&site, conn)?;
         "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nsite blocked!"
     } else if buffer.starts_with(post_check) {
         // let result = is_exists(&site, conn)?;
