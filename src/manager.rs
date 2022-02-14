@@ -26,7 +26,7 @@ impl MyStruct {
 
 // Declaring a MutStatic
 lazy_static! {
-    pub static ref MY_STRUCT: MutStatic<MyStruct> = { MutStatic::new() };
+    pub static ref MY_STRUCT: MutStatic<MyStruct> = MutStatic::new();
 }
 
 pub fn block_domain(domain: &str, mut conn: redis::Connection) -> Result<(), RedisError> {
