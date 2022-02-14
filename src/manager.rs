@@ -1,17 +1,16 @@
+use crate::config::load_config;
+use crate::config::DB;
+use crate::dao::*;
+use lazy_static::lazy_static;
+use mut_static::MutStatic;
 use redis::RedisError;
 use std::error::Error;
 use std::io::prelude::*;
 use std::net::TcpStream;
-use crate::dao::*;
-use crate::config::DB;
-use crate::config::load_config;
-use lazy_static::lazy_static;
-use mut_static::MutStatic;
 // use std::ops::DerefMut;
 // use std::mem;
 
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct MyStruct {
     pub list: Vec<String>,
 }
@@ -27,9 +26,7 @@ impl MyStruct {
 
 // Declaring a MutStatic
 lazy_static! {
-    pub static ref MY_STRUCT: MutStatic<MyStruct> = {
-        MutStatic::new()
-    };
+    pub static ref MY_STRUCT: MutStatic<MyStruct> = { MutStatic::new() };
 }
 
 pub fn block_domain(domain: &str, mut conn: redis::Connection) -> Result<(), RedisError> {

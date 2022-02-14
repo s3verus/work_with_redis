@@ -1,7 +1,7 @@
-use std::error::Error;
 use crate::config::DB;
-use redis::RedisError;
 use redis::Commands;
+use redis::RedisError;
+use std::error::Error;
 
 pub fn connect(config: DB) -> Result<redis::Connection, Box<dyn Error>> {
     let host = config.host;
@@ -14,10 +14,7 @@ pub fn connect(config: DB) -> Result<redis::Connection, Box<dyn Error>> {
 }
 
 pub fn add_items(key: &str, value: &str, conn: &mut redis::Connection) -> Result<(), RedisError> {
-    let _: () = redis::cmd("rpush")
-        .arg(key)
-        .arg(value)
-        .query(&mut *conn)?;
+    let _: () = redis::cmd("rpush").arg(key).arg(value).query(&mut *conn)?;
     Ok(())
 }
 

@@ -1,16 +1,14 @@
+use serde::Deserialize;
+use std::error::Error;
 use std::fs::File;
 use std::io::Read;
-use std::error::Error;
-use serde::Deserialize;
 
-#[derive(Clone)]
-#[derive(Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct Listener {
     pub bind: String,
 }
 
-#[derive(Clone)]
-#[derive(Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct DB {
     pub host: String,
     pub port: String,
@@ -18,8 +16,7 @@ pub struct DB {
     pub user: String,
 }
 
-#[derive(Clone)]
-#[derive(Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct Config {
     pub listener: Listener,
     pub db: DB,
