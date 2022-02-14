@@ -7,8 +7,8 @@ use crate::config::DB;
 use crate::config::load_config;
 use lazy_static::lazy_static;
 use mut_static::MutStatic;
-use std::ops::DerefMut;
-use std::mem;
+// use std::ops::DerefMut;
+// use std::mem;
 
 #[derive(Debug)]
 #[derive(Clone)]
@@ -36,7 +36,8 @@ pub fn block_domain(domain: &str, mut conn: redis::Connection) -> Result<(), Red
     let _: () = add_items("block_list", domain, &mut conn)?;
     // Resetting a MutStatic
     let mut my_struct = MY_STRUCT.write().unwrap();
-    mem::replace(my_struct.deref_mut(), MyStruct::update());
+    // mem::replace(my_struct.deref_mut(), MyStruct::update());
+    *my_struct = MyStruct::update();
     Ok(())
 }
 /*
