@@ -18,6 +18,19 @@ pub fn add_items(key: &str, value: &str, conn: &mut redis::Connection) -> Result
     Ok(())
 }
 
+pub fn remove_items(
+    key: &str,
+    value: &str,
+    conn: &mut redis::Connection,
+) -> Result<(), RedisError> {
+    let _: () = redis::cmd("lrem")
+        .arg(key)
+        .arg("0")
+        .arg(value)
+        .query(&mut *conn)?;
+    Ok(())
+}
+
 pub fn get_items(list_name: &str, mut conn: redis::Connection) -> Result<Vec<String>, RedisError> {
     conn.lrange(list_name, 0, -1)
 }
