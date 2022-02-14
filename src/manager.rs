@@ -58,10 +58,20 @@ pub fn is_exists(domain: &String) -> bool {
         false
     }
 }
+
+pub fn release_domain(domain: &str, mut conn: redis::Connection) -> Result<(), RedisError> {
+    let _: () = remove_items("block_list", domain, &mut conn)?;
+    // Resetting a MutStatic
+    let mut my_struct = MY_STRUCT.write().unwrap();
+    *my_struct = MyStruct::update();
+    Ok(())
+}
+
 pub fn handle_connection(mut stream: TcpStream, config: DB) -> Result<(), Box<dyn Error>> {
     let mut buffer = [0; 256];
     let post_block = b"POST /block HTTP/1.1\r\n";
     let post_check = b"POST /check HTTP/1.1\r\n";
+    let post_release = b"POST /release HTTP/1.1\r\n";
     let conn = connect(config)?;
 
     stream.read(&mut buffer)?;
@@ -84,6 +94,14 @@ pub fn handle_connection(mut stream: TcpStream, config: DB) -> Result<(), Box<dy
         let result = is_exists(&site);
         if result {
             "HTTP/1.1 200 OK\r\nContent-Length: 19\r\n\r\nit's in block list!"
+        } else {
+            "HTTP/1.1 200 OK\r\nContent-Length: 24\r\n\r\nnot found in block list!"
+        }
+    } else if buffer.starts_with(post_release) {
+        let result = is_exists(&site);
+        if result {
+            release_domain(&site, conn)?;
+            "HTTP/1.1 200 OK\r\nContent-Length: 14\r\n\r\nsite released!"
         } else {
             "HTTP/1.1 200 OK\r\nContent-Length: 24\r\n\r\nnot found in block list!"
         }
