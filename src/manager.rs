@@ -87,8 +87,13 @@ pub fn handle_connection(mut stream: TcpStream, config: DB) -> Result<(), Box<dy
 
     // Validating the Request and Selectively Responding
     let response = if buffer.starts_with(post_block) {
-        block_domain(&site, conn)?;
-        "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nsite blocked!"
+        let result = is_exists(&site);
+        if result {
+            "HTTP/1.1 200 OK\r\nContent-Length: 19\r\n\r\nit's in block list!"
+        } else {
+            block_domain(&site, conn)?;
+            "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nsite blocked!"
+        }
     } else if buffer.starts_with(post_check) {
         // let result = is_exists(&site, conn)?;
         let result = is_exists(&site);
