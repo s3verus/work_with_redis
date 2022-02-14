@@ -13,7 +13,7 @@ fn main() {
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
-        let results = handle_connection(stream, config.db.clone());
+        let results = handle_connection(stream, config.redis.clone()); // TODO can you remove clone?
         println!("{:?}", results);
     }
 }
