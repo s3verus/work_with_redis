@@ -4,12 +4,12 @@ use std::fs::File;
 use std::io::Read;
 
 #[derive(Clone, Deserialize, Debug)]
-pub struct Listener {
+pub struct ListenerConfig {
     pub bind: String,
 }
 
 #[derive(Clone, Deserialize, Debug)]
-pub struct DB {
+pub struct RedisConfig {
     pub host: String,
     pub port: String,
     pub pass: String,
@@ -18,8 +18,8 @@ pub struct DB {
 
 #[derive(Clone, Deserialize, Debug)]
 pub struct Config {
-    pub listener: Listener,
-    pub db: DB,
+    pub listener: ListenerConfig,
+    pub redis: RedisConfig,
 }
 
 pub fn load_config() -> Result<Config, Box<dyn Error>> {
@@ -32,6 +32,5 @@ pub fn load_config() -> Result<Config, Box<dyn Error>> {
 
     let config: Config = serde_json::from_str(&s)?;
 
-    // println!("config: {:?}", config);
     Ok(config)
 }
