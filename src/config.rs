@@ -22,9 +22,9 @@ pub struct Config {
     pub redis: RedisConfig,
 }
 
-pub fn load_config() -> Result<Config, Box<dyn Error>> {
+pub fn load_config(file: &String) -> Result<Config, Box<dyn Error>> {
     // Open file
-    let mut file = File::open("Config.json")?;
+    let mut file = File::open(file)?;
 
     // Read the file contents into a string
     let mut s = String::new();
