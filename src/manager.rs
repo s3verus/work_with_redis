@@ -1,42 +1,40 @@
 use crate::config::RedisConfig;
 use crate::dao::*;
 use lazy_static::lazy_static;
-use mut_static::MutStatic;
 use redis::RedisError;
 use std::error::Error;
 use std::io::prelude::*;
 use std::net::TcpStream;
 
-#[derive(Debug, Clone)]
-pub struct MyStruct {
-    pub list: Vec<String>,
-}
-
-impl MyStruct {
-    pub fn update(config: RedisConfig) -> Self {
-        let conn = connect(config.clone()).unwrap(); // TODO can you remove it?
-        let list = get_items("block_list", conn).unwrap();
-        Self { list }
-    }
-}
+use std::sync::Mutex;
 
 // Declaring a MutStatic
 lazy_static! {
-    pub static ref MY_STRUCT: MutStatic<MyStruct> = MutStatic::new();
+    pub static ref REDIS_LIST: Mutex<Vec<String>> = Mutex::new(vec![]);
 }
 
-pub fn block_domain(domain: &str, mut conn: redis::Connection, config: RedisConfig) -> Result<(), RedisError> {
+pub fn set_value(config: RedisConfig) -> Vec<String> {
+    let conn = connect(config.clone()).unwrap(); // TODO first edit get_items to solve it
+    let list = get_items("block_list", conn).unwrap();
+    list
+}
+
+pub fn block_domain(
+    domain: &str,
+    mut conn: redis::Connection,
+    config: RedisConfig,
+) -> Result<(), RedisError> {
     let _: () = add_items("block_list", domain, &mut conn)?;
     // Resetting a MutStatic
-    let mut my_struct = MY_STRUCT.write().unwrap();
-    *my_struct = MyStruct::update(config);
+    REDIS_LIST.lock().unwrap().clear();
+    REDIS_LIST.lock().unwrap().append(&mut set_value(config));
     Ok(())
 }
 
 pub fn is_exists(domain: &String) -> bool {
     // Using a MutStatic
-    let result = MY_STRUCT.read().unwrap();
-    let result = result.list.contains(domain);
+    let result = REDIS_LIST.lock().unwrap();
+    let result = result.contains(domain);
     if result {
         true
     } else {
@@ -44,11 +42,15 @@ pub fn is_exists(domain: &String) -> bool {
     }
 }
 
-pub fn release_domain(domain: &str, mut conn: redis::Connection, config: RedisConfig) -> Result<(), RedisError> {
+pub fn release_domain(
+    domain: &str,
+    mut conn: redis::Connection,
+    config: RedisConfig,
+) -> Result<(), RedisError> {
     let _: () = remove_items("block_list", domain, &mut conn)?;
     // Resetting a MutStatic
-    let mut my_struct = MY_STRUCT.write().unwrap();
-    *my_struct = MyStruct::update(config);
+    REDIS_LIST.lock().unwrap().clear();
+    REDIS_LIST.lock().unwrap().append(&mut set_value(config));
     Ok(())
 }
 
