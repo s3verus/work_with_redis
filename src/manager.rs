@@ -1,4 +1,3 @@
-use crate::config::load_config;
 use crate::config::RedisConfig;
 use crate::dao::*;
 use lazy_static::lazy_static;
@@ -14,9 +13,8 @@ pub struct MyStruct {
 }
 
 impl MyStruct {
-    pub fn update() -> Self {
-        let config = load_config().unwrap(); // TODO can you remove it?
-        let conn = connect(config.redis.clone()).unwrap(); // TODO can you remove it?
+    pub fn update(config: RedisConfig) -> Self {
+        let conn = connect(config.clone()).unwrap(); // TODO can you remove it?
         let list = get_items("block_list", conn).unwrap();
         Self { list }
     }
@@ -27,11 +25,11 @@ lazy_static! {
     pub static ref MY_STRUCT: MutStatic<MyStruct> = MutStatic::new();
 }
 
-pub fn block_domain(domain: &str, mut conn: redis::Connection) -> Result<(), RedisError> {
+pub fn block_domain(domain: &str, mut conn: redis::Connection, config: RedisConfig) -> Result<(), RedisError> {
     let _: () = add_items("block_list", domain, &mut conn)?;
     // Resetting a MutStatic
     let mut my_struct = MY_STRUCT.write().unwrap();
-    *my_struct = MyStruct::update();
+    *my_struct = MyStruct::update(config);
     Ok(())
 }
 
@@ -46,11 +44,11 @@ pub fn is_exists(domain: &String) -> bool {
     }
 }
 
-pub fn release_domain(domain: &str, mut conn: redis::Connection) -> Result<(), RedisError> {
+pub fn release_domain(domain: &str, mut conn: redis::Connection, config: RedisConfig) -> Result<(), RedisError> {
     let _: () = remove_items("block_list", domain, &mut conn)?;
     // Resetting a MutStatic
     let mut my_struct = MY_STRUCT.write().unwrap();
-    *my_struct = MyStruct::update();
+    *my_struct = MyStruct::update(config);
     Ok(())
 }
 
@@ -59,7 +57,7 @@ pub fn handle_connection(mut stream: TcpStream, config: RedisConfig) -> Result<(
     let post_block = b"POST /block HTTP/1.1\r\n";
     let post_check = b"POST /check HTTP/1.1\r\n";
     let post_release = b"POST /release HTTP/1.1\r\n";
-    let conn = connect(config)?;
+    let conn = connect(config.clone())?;
 
     stream.read(&mut buffer)?;
     println!("\nRequest:\n{}", String::from_utf8_lossy(&buffer[..]));
@@ -78,7 +76,7 @@ pub fn handle_connection(mut stream: TcpStream, config: RedisConfig) -> Result<(
         if result {
             "HTTP/1.1 200 OK\r\nContent-Length: 19\r\n\r\nit's in block list!"
         } else {
-            block_domain(&site, conn)?;
+            block_domain(&site, conn, config)?;
             "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nsite blocked!"
         }
     } else if buffer.starts_with(post_check) {
@@ -91,7 +89,7 @@ pub fn handle_connection(mut stream: TcpStream, config: RedisConfig) -> Result<(
     } else if buffer.starts_with(post_release) {
         let result = is_exists(&site);
         if result {
-            release_domain(&site, conn)?;
+            release_domain(&site, conn, config)?;
             "HTTP/1.1 200 OK\r\nContent-Length: 14\r\n\r\nsite released!"
         } else {
             "HTTP/1.1 200 OK\r\nContent-Length: 24\r\n\r\nnot found in block list!"
