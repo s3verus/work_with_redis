@@ -5,11 +5,12 @@ use redis::RedisError;
 use std::error::Error;
 use std::io::prelude::*;
 use std::net::TcpStream;
-
 use std::sync::Mutex;
+use std::sync::MutexGuard;
 
 // Declaring a MutStatic
 lazy_static! {
+    // we don't need Mutex, i'll remove it later
     pub static ref REDIS_LIST: Mutex<Vec<String>> = Mutex::new(vec![]);
 }
 
@@ -34,11 +35,34 @@ pub fn block_domain(
 pub fn is_exists(domain: &String) -> bool {
     // Using a MutStatic
     let result = REDIS_LIST.lock().unwrap();
-    let result = result.contains(domain);
-    if result {
+    if result.contains(domain) {
         true
     } else {
         false
+    }
+}
+
+pub fn get_second(in_string: &String) -> String {
+    // slice string two part and return second part
+    let mut splitter = in_string.splitn(2, '.');
+    splitter.next().unwrap();
+    let second = splitter.next().unwrap();
+    second.to_string()
+}
+
+pub fn is_exists_rec(domain: &String, result: MutexGuard<Vec<String>>) -> bool {
+    // time over and fastest way to implement is recursive
+    // but, i think should use trie data structure for better performance
+    if result.contains(domain) {
+        true
+    } else {
+        let domain_vec: Vec<&str> = domain.split(".").collect();
+        if domain_vec.len() == 2 {
+            return false;
+        };
+        let domain = get_second(domain);
+        //println!("{}", domain);
+        is_exists_rec(&domain, result)
     }
 }
 
@@ -74,23 +98,21 @@ pub fn handle_connection(mut stream: TcpStream, config: RedisConfig) -> Result<(
 
     // Validating the Request and Selectively Responding
     let response = if buffer.starts_with(post_block) {
-        let result = is_exists(&site);
-        if result {
+        if is_exists(&site) {
             "HTTP/1.1 200 OK\r\nContent-Length: 19\r\n\r\nit's in block list!"
         } else {
             block_domain(&site, conn, config)?;
             "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nsite blocked!"
         }
     } else if buffer.starts_with(post_check) {
-        let result = is_exists(&site);
-        if result {
+        let result = REDIS_LIST.lock().unwrap();
+        if is_exists_rec(&site, result) {
             "HTTP/1.1 200 OK\r\nContent-Length: 19\r\n\r\nit's in block list!"
         } else {
             "HTTP/1.1 200 OK\r\nContent-Length: 24\r\n\r\nnot found in block list!"
         }
     } else if buffer.starts_with(post_release) {
-        let result = is_exists(&site);
-        if result {
+        if is_exists(&site) {
             release_domain(&site, conn, config)?;
             "HTTP/1.1 200 OK\r\nContent-Length: 14\r\n\r\nsite released!"
         } else {
@@ -103,4 +125,16 @@ pub fn handle_connection(mut stream: TcpStream, config: RedisConfig) -> Result<(
     stream.write(response.as_bytes())?;
     stream.flush()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_get_second() {
+        let in_string = String::from("a.b.domain.tld");
+        assert_eq!(get_second(&in_string), "b.domain.tld".to_string());
+    }
 }
