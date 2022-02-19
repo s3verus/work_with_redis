@@ -15,7 +15,6 @@ fn main() {
     let listener = TcpListener::bind(config.listener.bind).unwrap();
 
     // Setting a MutStatic
-    REDIS_LIST.lock().unwrap().clear();
     REDIS_LIST
         .lock()
         .unwrap()
