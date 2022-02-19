@@ -17,3 +17,11 @@ check block list:
 `
 curl -d "hell.com" -X POST 127.0.0.1:1337/check
 `
+
+
+# TODOs:
+
+- [ ] add more test
+- [ ] edit names
+- [ ] remove unwrap and add logger
+- [ ] connection pool
