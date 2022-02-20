@@ -6,7 +6,9 @@ use std::error::Error;
 use std::io::prelude::*;
 use std::net::TcpStream;
 use std::sync::Mutex;
-use std::sync::MutexGuard;
+// use std::sync::MutexGuard;
+use trie_rs::Trie;
+use trie_rs::TrieBuilder;
 
 // Declaring a MutStatic
 lazy_static! {
@@ -42,27 +44,24 @@ pub fn is_exists(domain: &String) -> bool {
     }
 }
 
-pub fn get_second(in_string: &String) -> String {
+pub fn get_second(in_string: &str) -> &str {
     // slice string two part and return second part
     let mut splitter = in_string.splitn(2, '.');
     splitter.next().unwrap();
     let second = splitter.next().unwrap();
-    second.to_string()
+    second
 }
 
-pub fn is_exists_rec(domain: &String, result: MutexGuard<Vec<String>>) -> bool {
-    // time over and fastest way to implement is recursive
-    // but, i think should use trie data structure for better performance
-    if result.contains(domain) {
+pub fn is_exists_rec(domain: &str, trie: Trie<u8>) -> bool {
+    if trie.exact_match(domain) {
         true
     } else {
-        let domain_vec: Vec<&str> = domain.split(".").collect();
-        if domain_vec.len() == 2 {
+        if domain.matches(".").count() == 1 {
             return false;
         };
         let domain = get_second(domain);
         //println!("{}", domain);
-        is_exists_rec(&domain, result)
+        is_exists_rec(domain, trie)
     }
 }
 
@@ -105,8 +104,13 @@ pub fn handle_connection(mut stream: TcpStream, config: RedisConfig) -> Result<(
             "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nsite blocked!"
         }
     } else if buffer.starts_with(post_check) {
-        let result = REDIS_LIST.lock().unwrap();
-        if is_exists_rec(&site, result) {
+        let mut trie = TrieBuilder::new(); // Inferred `TrieBuilder<u8>` automatically
+        let list = REDIS_LIST.lock().unwrap();
+        for item in list.iter() {
+            trie.push(item);
+        }
+        let trie = trie.build();
+        if is_exists_rec(site.as_str(), trie) {
             "HTTP/1.1 200 OK\r\nContent-Length: 19\r\n\r\nit's in block list!"
         } else {
             "HTTP/1.1 200 OK\r\nContent-Length: 24\r\n\r\nnot found in block list!"
