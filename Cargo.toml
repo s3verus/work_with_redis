@@ -9,7 +9,7 @@ edition = "2021"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 lazy_static = "1.4.0"
-prefix-tree = "0.5.0"
+radix_trie = "0.2"
 
 [dependencies.redis]
 version = "*"
