@@ -1,25 +1,30 @@
 use crate::config::RedisConfig;
 use crate::dao::*;
 use lazy_static::lazy_static;
+use prefix_tree::PrefixMap;
 use redis::RedisError;
 use std::error::Error;
 use std::io::prelude::*;
 use std::net::TcpStream;
 use std::sync::Mutex;
-// use std::sync::MutexGuard;
-use trie_rs::Trie;
-use trie_rs::TrieBuilder;
+use std::sync::MutexGuard;
 
 // Declaring a MutStatic
 lazy_static! {
     // we don't need Mutex, i'll remove it later
-    pub static ref REDIS_LIST: Mutex<Vec<String>> = Mutex::new(vec![]);
+    pub static ref REDIS_LIST: Mutex<PrefixMap<u8, i32>> = Mutex::new(PrefixMap::new());
 }
 
-pub fn set_value(config: RedisConfig) -> Vec<String> {
+pub fn set_value(config: RedisConfig) {
     let conn = connect(config.clone()).unwrap(); // TODO first edit get_items to solve it
     let list = get_items("block_list", conn).unwrap();
-    list
+    // Resetting a MutStatic
+    REDIS_LIST.lock().unwrap().clear();
+    let mut count = 0;
+    for item in list.iter() {
+        REDIS_LIST.lock().unwrap().insert(item, count);
+        count += 1;
+    }
 }
 
 pub fn block_domain(
@@ -29,15 +34,14 @@ pub fn block_domain(
 ) -> Result<(), RedisError> {
     let _: () = add_items("block_list", domain, &mut conn)?;
     // Resetting a MutStatic
-    REDIS_LIST.lock().unwrap().clear();
-    REDIS_LIST.lock().unwrap().append(&mut set_value(config));
+    set_value(config);
     Ok(())
 }
 
 pub fn is_exists(domain: &String) -> bool {
     // Using a MutStatic
     let result = REDIS_LIST.lock().unwrap();
-    if result.contains(domain) {
+    if result.contains_key(domain) {
         true
     } else {
         false
@@ -52,8 +56,8 @@ pub fn get_second(in_string: &str) -> &str {
     second
 }
 
-pub fn is_exists_rec(domain: &str, trie: Trie<u8>) -> bool {
-    if trie.exact_match(domain) {
+pub fn is_exists_rec(domain: &str, trie: MutexGuard<PrefixMap<u8, i32>>) -> bool {
+    if trie.contains_key(domain) {
         true
     } else {
         if domain.matches(".").count() == 1 {
@@ -72,8 +76,9 @@ pub fn release_domain(
 ) -> Result<(), RedisError> {
     let _: () = remove_items("block_list", domain, &mut conn)?;
     // Resetting a MutStatic
+    // TODO sould move to function
     REDIS_LIST.lock().unwrap().clear();
-    REDIS_LIST.lock().unwrap().append(&mut set_value(config));
+    set_value(config);
     Ok(())
 }
 
@@ -104,13 +109,8 @@ pub fn handle_connection(mut stream: TcpStream, config: RedisConfig) -> Result<(
             "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nsite blocked!"
         }
     } else if buffer.starts_with(post_check) {
-        let mut trie = TrieBuilder::new(); // Inferred `TrieBuilder<u8>` automatically
         let list = REDIS_LIST.lock().unwrap();
-        for item in list.iter() {
-            trie.push(item);
-        }
-        let trie = trie.build();
-        if is_exists_rec(site.as_str(), trie) {
+        if is_exists_rec(site.as_str(), list) {
             "HTTP/1.1 200 OK\r\nContent-Length: 19\r\n\r\nit's in block list!"
         } else {
             "HTTP/1.1 200 OK\r\nContent-Length: 24\r\n\r\nnot found in block list!"
