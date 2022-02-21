@@ -1,7 +1,7 @@
 use std::env;
 use std::net::TcpListener;
 use work_with_redis::config::load_config;
-use work_with_redis::manager::{handle_connection, set_value, REDIS_LIST};
+use work_with_redis::manager::{handle_connection, set_value};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -15,10 +15,7 @@ fn main() {
     let listener = TcpListener::bind(config.listener.bind).unwrap();
 
     // Setting a MutStatic
-    REDIS_LIST
-        .lock()
-        .unwrap()
-        .append(&mut set_value(config.redis.clone()));
+    set_value(config.redis.clone());
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
