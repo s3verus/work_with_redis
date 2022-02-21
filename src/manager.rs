@@ -1,7 +1,8 @@
 use crate::config::RedisConfig;
 use crate::dao::*;
 use lazy_static::lazy_static;
-use prefix_tree::PrefixMap;
+use radix_trie::Trie;
+use radix_trie::TrieCommon;
 use redis::RedisError;
 use std::error::Error;
 use std::io::prelude::*;
@@ -12,17 +13,17 @@ use std::sync::MutexGuard;
 // Declaring a MutStatic
 lazy_static! {
     // we don't need Mutex, i'll remove it later
-    pub static ref REDIS_LIST: Mutex<PrefixMap<u8, i32>> = Mutex::new(PrefixMap::new());
+    pub static ref REDIS_LIST: Mutex<Trie<String, i32>> = Mutex::new(Trie::new());
 }
 
 pub fn set_value(config: RedisConfig) {
     let conn = connect(config.clone()).unwrap(); // TODO first edit get_items to solve it
     let list = get_items("block_list", conn).unwrap();
     // Resetting a MutStatic
-    REDIS_LIST.lock().unwrap().clear();
+    *REDIS_LIST.lock().unwrap() = Trie::new();
     let mut count = 0;
     for item in list.iter() {
-        REDIS_LIST.lock().unwrap().insert(item, count);
+        REDIS_LIST.lock().unwrap().insert(item.to_string(), count);
         count += 1;
     }
 }
@@ -41,7 +42,7 @@ pub fn block_domain(
 pub fn is_exists(domain: &String) -> bool {
     // Using a MutStatic
     let result = REDIS_LIST.lock().unwrap();
-    if result.contains_key(domain) {
+    if result.iter().any(|x| x.0 == domain) {
         true
     } else {
         false
@@ -56,8 +57,8 @@ pub fn get_second(in_string: &str) -> &str {
     second
 }
 
-pub fn is_exists_rec(domain: &str, trie: MutexGuard<PrefixMap<u8, i32>>) -> bool {
-    if trie.contains_key(domain) {
+pub fn is_exists_rec(domain: &str, trie: MutexGuard<Trie<String, i32>>) -> bool {
+    if trie.iter().any(|x| x.0 == domain) {
         true
     } else {
         if domain.matches(".").count() == 1 {
@@ -76,8 +77,6 @@ pub fn release_domain(
 ) -> Result<(), RedisError> {
     let _: () = remove_items("block_list", domain, &mut conn)?;
     // Resetting a MutStatic
-    // TODO sould move to function
-    REDIS_LIST.lock().unwrap().clear();
     set_value(config);
     Ok(())
 }
